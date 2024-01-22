@@ -77,7 +77,7 @@ class SaveImageCloud:
 
         return { "ui": { "images": results } }
     def upload_blob_tags(self, container_name: str, filename: str):
-        account_url = "https://imagestoragekj.blob.core.windows.net"
+        account_url = "https://teststoragej4bw9l.blob.core.windows.net"
         default_credential = DefaultAzureCredential()
         # Create the BlobServiceClient object
         blob_service_client = BlobServiceClient(account_url, credential=default_credential)

@@ -1,5 +1,5 @@
 import torch
-
+import io
 import os
 import sys
 import hashlib
@@ -41,16 +41,15 @@ class LoadImageCloud:
         
         # Download the blob to a local file
         # Add 'DOWNLOAD' before the .txt extension so you can see both files in the data directory
-        account_url = "https://imagestoragekj.blob.core.windows.net"
+        account_url = "https://teststoragej4bw9l.blob.core.windows.net"
         default_credential = DefaultAzureCredential()
 
         # Create the BlobServiceClient object
         blob_service_client = BlobServiceClient(account_url, credential=default_credential)
-        image_file_path = self.download_blob_to_file(blob_service_client, file_name)
+        image_bytes_stream = self.download_to_byte_stream(blob_service_client, file_name)
 
-        print(f"Downloaded blob {image_file_path} from Azure")
-        image_path = folder_paths.get_annotated_filepath(image_file_path, default_dir='')
-        img = Image.open(image_path)
+        print(f"Downloaded blob from Azure")
+        img = Image.open(image_bytes_stream)
         output_images = []
         output_masks = []
         for i in ImageSequence.Iterator(img):
@@ -84,6 +83,17 @@ class LoadImageCloud:
             download_stream = blob_client.download_blob()
             sample_blob.write(download_stream.readall())
         return downloaded_file_path
+
+    def download_to_byte_stream(self, blob_service_client: BlobServiceClient, file_name: str):
+        print(f"Attemping blob dl {file_name}")
+        blob_client = blob_service_client.get_blob_client(container="images", blob=file_name)
+        print(f"Succeeded fetch image from AZ")
+
+        download_stream = blob_client.download_blob()
+        bytes_stream = io.BytesIO(b'')
+        download_stream.readinto(bytes_stream)
+
+        return bytes_stream
 
     @classmethod
     def IS_CHANGED(s, image):
