@@ -1,5 +1,5 @@
 import torch
-
+import io
 import os
 import sys
 import json
@@ -23,7 +23,7 @@ from comfy.cli_args import args
 
 import folder_paths
 from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, ContentSettings
 
 class SaveImageCloud:
     def __init__(self):
@@ -48,6 +48,7 @@ class SaveImageCloud:
     CATEGORY = "image"
 
     def save_images(self, images, filename_prefix="ComfyUI", prompt=None, extra_pnginfo=None):
+        print(f"save_images >>> images type: {type(images)}")
         filename_prefix += self.prefix_append
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
         results = list()
@@ -65,17 +66,32 @@ class SaveImageCloud:
                     for x in extra_pnginfo:
                         metadata.add_text(x, json.dumps(extra_pnginfo[x]))
 
-            
-            img.save(os.path.join(full_output_folder, file), pnginfo=metadata, compress_level=self.compress_level)
-            results.append({
-                "filename": file,
-                "subfolder": subfolder,
-                "type": self.type
-            })           
-            self.upload_blob_tags("images", f"{filename}_{counter:05}_.png")
+            # Convert Pillow Image to Bytes
+            image_byte_array = io.BytesIO()
+            img.save(image_byte_array, format='PNG')
+            img_bytes = image_byte_array.getvalue()
+            print(f"save_images >>> img_bytes type: {type(img_bytes)}")
+
+            # Upload to Azure Blob Storage   
+            self.upload_blob_from_bytes("images", f"{filename}_{counter:05}_.png", img_bytes)
             counter += 1
 
         return { "ui": { "images": results } }
+
+    def upload_blob_from_bytes(self, container_name: str, filename: str, blob_bytes):
+        # Connect to AZ Blob Storage
+        account_url = "https://teststoragej4bw9l.blob.core.windows.net"
+        default_credential = DefaultAzureCredential()
+
+         # Create the BlobServiceClient object
+        blob_service_client = BlobServiceClient(account_url, credential=default_credential)
+        container_client = blob_service_client.get_container_client(container=container_name)
+        blob_client = container_client.get_blob_client(filename)
+
+        # Upload to Azure Blob Storage
+        content_settings = ContentSettings(content_type="image/png")
+        blob_client.upload_blob(blob_bytes, content_settings=content_settings, overwrite=True)
+
     def upload_blob_tags(self, container_name: str, filename: str):
         account_url = "https://teststoragej4bw9l.blob.core.windows.net"
         default_credential = DefaultAzureCredential()
