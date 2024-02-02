@@ -26,26 +26,34 @@ from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 
 class LoadImageCloud:
+    account_url = "https://teststoragej4bw9l.blob.core.windows.net"
+    default_credential = DefaultAzureCredential()
+    container_name = "images"
+
     def __init__(self):
         pass
 
     @classmethod
-    def INPUT_TYPES(s):
-        return {"required": {"file_name": ("STRING", {"multiline": False})}}
+    def INPUT_TYPES(cls):
+        file_names = cls.list_blob_names()
+        return {"required": {"file_name": (file_names,)}}
 
     CATEGORY = "image"
-
     RETURN_TYPES = ("IMAGE", "MASK")
     FUNCTION = "load_image"
+
+    @classmethod
+    def list_blob_names(cls):
+        blob_service_client = BlobServiceClient(cls.account_url, credential=cls.default_credential)
+        container_client = blob_service_client.get_container_client(cls.container_name)
+
+        return [blob.name for blob in container_client.list_blobs()]
+
     def load_image(self, file_name):
-        
         # Download the blob to a local file
         # Add 'DOWNLOAD' before the .txt extension so you can see both files in the data directory
-        account_url = "https://teststoragej4bw9l.blob.core.windows.net"
-        default_credential = DefaultAzureCredential()
-
         # Create the BlobServiceClient object
-        blob_service_client = BlobServiceClient(account_url, credential=default_credential)
+        blob_service_client = BlobServiceClient(self.account_url, credential=self.default_credential)
         image_bytes_stream = self.download_to_byte_stream(blob_service_client, file_name)
 
         print(f"Downloaded blob from Azure")
