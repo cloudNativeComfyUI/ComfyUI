@@ -539,11 +539,11 @@ class PromptServer():
 
         for name, dir in nodes.EXTENSION_WEB_DIRS.items():
             self.app.add_routes([
-                web.static('/extensions/' + urllib.parse.quote(name), dir, follow_symlinks=True),
+                web.static('/extensions/' + urllib.parse.quote(name), dir),
             ])
 
         self.app.add_routes([
-            web.static('/', self.web_root, follow_symlinks=True),
+            web.static('/', self.web_root),
         ])
 
     def get_queue_info(self):
@@ -632,8 +632,6 @@ class PromptServer():
         site = web.TCPSite(runner, address, port)
         await site.start()
 
-        if address == '':
-            address = '0.0.0.0'
         if verbose:
             print("Starting server\n")
             print("To see the GUI go to: http://{}:{}".format(address, port))

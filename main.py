@@ -110,7 +110,12 @@ def prompt_worker(q, server):
 
             e.execute(item[2], prompt_id, item[3], item[4])
             need_gc = True
-            q.task_done(item_id, e.outputs_ui)
+            q.task_done(item_id,
+                        e.outputs_ui,
+                        status=execution.PromptQueue.ExecutionStatus(
+                            status_str='success' if e.success else 'error',
+                            completed=e.success,
+                            messages=e.status_messages))
             if server.client_id is not None:
                 server.send_sync("executing", { "node": None, "prompt_id": prompt_id }, server.client_id)
 
@@ -187,6 +192,13 @@ if __name__ == "__main__":
         print(f"Setting temp directory to: {temp_dir}")
         folder_paths.set_temp_directory(temp_dir)
     cleanup_temp()
+
+    if args.windows_standalone_build:
+        try:
+            import new_updater
+            new_updater.update_windows_updater()
+        except:
+            pass
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
