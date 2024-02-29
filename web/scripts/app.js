@@ -50,6 +50,8 @@ export class ComfyApp {
 	static clipspace_return_node = null;
 
 	constructor() {
+		this.user;
+		this.validateUserSession();
 		this.ui = new ComfyUI(this);
 		this.logging = new ComfyLogging(this);
 
@@ -76,6 +78,60 @@ export class ComfyApp {
 		 * @type {boolean}
 		 */
 		this.shiftDown = false;
+	}
+
+	validateUserSession() {
+		// Get cookie
+		let userToken = this.getCookie("comfyUserToken");
+
+		// If no cookie redirect
+		if (!userToken) {
+			console.log("No user token found, redirecting to login...");
+			window.location.href = "http://localhost:3000"; // Login App URL env var it
+		}
+		// If cookie
+		else {
+			const { username, exp } = this.decodeJWT(userToken);
+			this.user = username;
+
+			// Validate cookie
+			if (exp*1000 <= Date.now()) {
+				// Not valid delete and redirect
+				console.log("User token is expired, redirecting to login...");
+				document.cookie = `comfyUserToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+				window.location.href = "http://localhost:3000"; // Login App URL env var it
+			}
+
+			// Valid continue
+			console.log("User token is valid, continue...");
+		}
+	}
+
+	decodeJWT(token) {
+		const base64Url = token.split('.')[1];
+		const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+		const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+			return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+		}).join(''));
+
+		return JSON.parse(jsonPayload);
+	}
+
+	getCookie(cookieName) {
+		// Split document.cookie string into individual cookies
+		let cookies = document.cookie.split(';');
+
+		// Iterate through cookies to find the one with the specified name
+		for (let i = 0; i < cookies.length; i++) {
+			var cookie = cookies[i].trim();
+			// Check if the cookie starts with the specified name
+			if (cookie.startsWith(cookieName + '=')) {
+				// If found, return the value of the cookie
+				return cookie.substring(cookieName.length + 1);
+			}
+		}
+		// If cookie not found, return null
+		return null;
 	}
 
 	getPreviewFormatParam() {
