@@ -93,6 +93,7 @@ export class ComfyApp {
 		else {
 			const { username, exp } = this.decodeJWT(userToken);
 			this.user = username;
+			document.getElementById("comfy-username").innerHTML = username;
 
 			// Validate cookie
 			if (exp*1000 <= Date.now()) {
