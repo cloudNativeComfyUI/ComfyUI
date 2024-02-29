@@ -5,6 +5,11 @@ import os
 import importlib.util
 import folder_paths
 import time
+import queue
+
+# Start tracking server uptime
+start_time = time.perf_counter()
+result_queue = queue.Queue()
 
 def execute_prestartup_script():
     def execute_script(script_path):
@@ -90,7 +95,7 @@ def cuda_malloc_warning():
         if cuda_malloc_warning:
             print("\nWARNING: this card most likely does not support cuda-malloc, if you get \"CUDA error\" please run ComfyUI with: --disable-cuda-malloc\n")
 
-def prompt_worker(q, server):
+def prompt_worker(q, server,result_queue):
     e = execution.PromptExecutor(server)
     last_gc_collect = 0
     need_gc = False
@@ -122,6 +127,7 @@ def prompt_worker(q, server):
             current_time = time.perf_counter()
             execution_time = current_time - execution_start_time
             print("Prompt executed in {:.2f} seconds".format(execution_time))
+            result_queue.put(execution_time) 
 
         flags = q.get_flags()
         free_memory = flags.get("free_memory", False)
@@ -220,7 +226,7 @@ if __name__ == "__main__":
     server.add_routes()
     hijack_progress(server)
 
-    threading.Thread(target=prompt_worker, daemon=True, args=(q, server,)).start()
+    threading.Thread(target=prompt_worker, daemon=True, args=(q, server,result_queue)).start()
 
     if args.output_directory:
         output_dir = os.path.abspath(args.output_directory)
@@ -253,5 +259,15 @@ if __name__ == "__main__":
         loop.run_until_complete(run(server, address=args.listen, port=args.port, verbose=not args.dont_print_server, call_on_start=call_on_start))
     except KeyboardInterrupt:
         print("\nStopped server")
+        # Calculate and display total workflow runtime 
+        total_workflow_runtime = 0.0
+        while not result_queue.empty():
+            total_workflow_runtime += result_queue.get()
+
+        print(f"\ntotal workflow runtime was {total_workflow_runtime:.2f} seconds.")
+        # Calculate and display server uptime
+        end_time = time.perf_counter()
+        total_time = end_time - start_time
+        print(f"\nServer was operational for {total_time:.2f} seconds.")
 
     cleanup_temp()
